@@ -1,7 +1,7 @@
 function loadchart(div, json) {
     // pass in id of div where the svg will live and name/url of json data
-    var dayWidth = 10,
-        height = 200,
+    var dayWidth = 20,
+        height = 5000,
         margin = {
             top: 40,
             right: 40,
@@ -22,20 +22,53 @@ function loadchart(div, json) {
     var makeDate = function(numGates){
         return new Date(numGates*86400000);
     };
+    var getSmallestGates = function(nodes){
+        console.log(nodes);
+        var minGate = Infinity;
+        
+        for (var i = 0; i < nodes.length; i++) {
+            //alert(myStringArray[i]);
+            //Do something
+            var numGates = nodes[i]["cmos_gates"]
+            if (numGates < minGate){
+                minGate = numGates
+                console.log(minGate,nodes[i])
+            }
+        }
+        console.log('smallest',minGate)
+        //return minGate; //nodes[0].cmos_gates;
+        return 0;
+    };
+    var getLargestGates = function(nodes){
+        console.log(nodes);
+        var maxGate = 0;
+        
+        for (var i = 0; i < nodes.length; i++) {
+            //alert(myStringArray[i]);
+            //Do something
+            var numGates = nodes[i]["cmos_gates"]
+            if (numGates > maxGate){
+                maxGate = numGates
+                console.log(maxGate,nodes[i])
+            }
+        }
+        console.log('largest',maxGate)
+        return maxGate; //nodes[0].cmos_gates;
+    };
 
     d3.json(json, function (error, graph) {
 
         var line = d3.svg.line()
-
-        var earliest = new Date(graph.nodes[0].date);
-        console.log(earliest)
-        var smallest = graph.nodes[0].gates;
+        console.log(error)
+        //var earliest = new Date(graph.nodes[0].date);
+        //console.log(earliest)
+        var smallest = getSmallestGates(graph.nodes); //graph.nodes[0].cmos_gates;
         var earliest = makeDate(smallest); //new Date(smallest*86400000);
         console.log(earliest)
         // TODO discover latest by looking rather than assuming the nodes are sorted
-        var latest = new Date(graph.nodes[graph.nodes.length - 1].date);
-        console.log(latest)
-        var largest = new Date(graph.nodes[graph.nodes.length - 1].gates);
+        //var latest = new Date(graph.nodes[graph.nodes.length - 1].date);
+        //console.log(latest)
+        var largest = getLargestGates(graph.nodes); //new Date(graph.nodes[graph.nodes.length - 1].cmos_gates);
         var latest = makeDate(largest); //new Date(largest*86400000);
         console.log(latest)
         // number of days in the data set ...
@@ -64,7 +97,7 @@ function loadchart(div, json) {
             .scale(x)
             .orient('bottom')
             .ticks(d3.time.days, 1)
-            .tickFormat(d3.time.format('%a %-e'))
+            .tickFormat(d3.time.format('%-e'))
             .tickSize(5)
             .tickPadding(8);
 
@@ -75,11 +108,11 @@ function loadchart(div, json) {
             .tickFormat(d3.time.format("%B %Y"))
             .tickSize(5, 0);
 
-        svg.append('g')
+        /*svg.append('g')
             .attr('class', 'x axis monthaxis')
             .attr('transform', 'translate(0, ' + (height - margin.top - margin.bottom) + ')')
             .attr('style', 'opacity: 0.1')
-            .call(xAxisMonths);
+            .call(xAxisMonths);*/
         svg.append('g')
             .attr('class', 'x axis dayaxis')
             .attr('transform', 'translate(0, ' + (height - margin.top - margin.bottom) + ')')
@@ -153,10 +186,14 @@ function loadchart(div, json) {
             // y is stacked on any letters already on that date if the date is precise,
             //   otherwise at top of graph to allow it to be pulled into position
             //node.x = x(new Date(node.date)) + (2 * radius);
-            node.x = x(makeDate(node.gates)) + (2 * radius);
+            node.x = x(makeDate(node.cmos_gates)) + (2 * radius);
             if (node.type == "fixed") {
                 //var previousLetters = (stackcounts['d' + node.date]) ? stackcounts['d' + node.date] : 0;
-                var dateBasedOnGates = makeDate(node.gates).toISOString().split('T')[0];
+                console.log(node)
+                console.log(node.cmos_gates)
+                var dateBasedOnGates = makeDate(node.cmos_gates);
+                console.log(dateBasedOnGates)
+                var dateBasedOnGates = dateBasedOnGates.toISOString().split('T')[0];
                 console.log(dateBasedOnGates)
                 var previousLetters = (stackcounts['d' + dateBasedOnGates]) ? stackcounts['d' + dateBasedOnGates] : 0;
                 //stackcounts['d' + node.date] = previousLetters + 1;
@@ -180,16 +217,20 @@ function loadchart(div, json) {
                 return "n" + d.id;
             })
             .attr('class', function (d) {
-                var dateBasedOnGates = makeDate(d.gates).toISOString().split('T')[0];
-                //return "letter d" + dateBasedOnGates + " from" + d.from + " precise"; 
-                return "letter d" + dateBasedOnGates + " precise"; 
+                if (d.type == 'fixed') {
+                    var dateBasedOnGates = makeDate(d.cmos_gates).toISOString().split('T')[0];
+                    //return "letter d" + dateBasedOnGates + " from" + d.from + " precise"; 
+                    return "letter d" + dateBasedOnGates + " precise"; 
                 	//((d.type == "fixed") ? "precise" : "notprecise");
+                } else {
+                    return "letter notprecise"
+                }
             })
             .attr('r', radius)
 
         node.append("svg:title")
             .text(function (d) {
-                return d.name;
+                return d.id;
             });
 
 		// text, centered in node, with white shadow for legibility
@@ -197,11 +238,11 @@ function loadchart(div, json) {
 			.attr("text-anchor", "middle")
 			.attr("dy", radius / 2)
 			.attr("class", "shadow")
-			.text(function(d) { return d.id });
+			.text(function(d) { return d.name });
 		node.append("text")
 			.attr("text-anchor", "middle")
 			.attr("dy", radius / 2)
-			.text(function(d) { return d.id });
+			.text(function(d) { return d.name });
 
 		// on click, do something with id
 		// implement this in a function outside this block
