@@ -1,6 +1,6 @@
 function loadchart(div, json) {
     // pass in id of div where the svg will live and name/url of json data
-    var dayWidth = 100,
+    var dayWidth = 10,
         height = 200,
         margin = {
             top: 40,
@@ -9,6 +9,7 @@ function loadchart(div, json) {
             left: 40
         },
         radius = 10;
+        //gateWidth = 100;
 
     // ctlx and ctly are the offsets for the control points for the Bezier curve.
     //   ctly is subtracted from source and target, to place control point
@@ -17,18 +18,32 @@ function loadchart(div, json) {
     //      so as to flatten the curve slightly
     var ctlx = 10;
     var ctly = 35;
+    
+    var makeDate = function(numGates){
+        return new Date(numGates*86400000);
+    };
 
     d3.json(json, function (error, graph) {
 
         var line = d3.svg.line()
 
         var earliest = new Date(graph.nodes[0].date);
+        console.log(earliest)
+        var smallest = graph.nodes[0].gates;
+        var earliest = makeDate(smallest); //new Date(smallest*86400000);
+        console.log(earliest)
         // TODO discover latest by looking rather than assuming the nodes are sorted
         var latest = new Date(graph.nodes[graph.nodes.length - 1].date);
+        console.log(latest)
+        var largest = new Date(graph.nodes[graph.nodes.length - 1].gates);
+        var latest = makeDate(largest); //new Date(largest*86400000);
+        console.log(latest)
         // number of days in the data set ...
         var interval = (latest - earliest) / 1000 / 60 / 60 / 24 + 1;
+        console.log(interval)
         // ... determines the width of the svg
         var width = interval * dayWidth;
+        console.log(width)
 
         var svg = d3.select("#" + div)
             .append("svg")
@@ -137,10 +152,15 @@ function loadchart(div, json) {
             // x is always over the sortdate
             // y is stacked on any letters already on that date if the date is precise,
             //   otherwise at top of graph to allow it to be pulled into position
-            node.x = x(new Date(node.date)) + (2 * radius);
+            //node.x = x(new Date(node.date)) + (2 * radius);
+            node.x = x(makeDate(node.gates)) + (2 * radius);
             if (node.type == "fixed") {
-                var previousLetters = (stackcounts['d' + node.date]) ? stackcounts['d' + node.date] : 0;
-                stackcounts['d' + node.date] = previousLetters + 1;
+                //var previousLetters = (stackcounts['d' + node.date]) ? stackcounts['d' + node.date] : 0;
+                var dateBasedOnGates = makeDate(node.gates).toISOString().split('T')[0];
+                console.log(dateBasedOnGates)
+                var previousLetters = (stackcounts['d' + dateBasedOnGates]) ? stackcounts['d' + dateBasedOnGates] : 0;
+                //stackcounts['d' + node.date] = previousLetters + 1;
+                stackcounts['d' + dateBasedOnGates] = previousLetters + 1;
                 node.y = height - margin.bottom - margin.top - radius - 1 - 
                 	(previousLetters * radius * 2) - previousLetters;
                 node.fixed = true;
@@ -160,8 +180,10 @@ function loadchart(div, json) {
                 return "n" + d.id;
             })
             .attr('class', function (d) {
-                return "letter d" + d.date + " from" + d.from + " " + 
-                	((d.type == "fixed") ? "precise" : "notprecise");
+                var dateBasedOnGates = makeDate(d.gates).toISOString().split('T')[0];
+                //return "letter d" + dateBasedOnGates + " from" + d.from + " precise"; 
+                return "letter d" + dateBasedOnGates + " precise"; 
+                	//((d.type == "fixed") ? "precise" : "notprecise");
             })
             .attr('r', radius)
 
